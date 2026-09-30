@@ -131,7 +131,6 @@ function usage(): string {
 USAGE
   hilbras-code [options] [prompt]      run a single prompt and exit
   hilbras-code                         start an interactive session
-  hilbras-code mcp <command>           manage MCP servers
 
 OPTIONS
   -p, --provider <name>    ${SUPPORTED_PROVIDERS.join(" | ")}
@@ -188,11 +187,14 @@ function main(): void {
     .filter((part): part is string => Boolean(part))
     .join(" ");
 
-  // Subcommands that do not need a provider.
+  // MCP is not implemented yet. Say so plainly rather than advertising a
+  // dependency the binary does not use.
   if (promptFromArgs.startsWith("mcp")) {
-    process.stdout.write(
-      "MCP support is wired via @modelcontextprotocol/sdk but the subcommand is not registered yet.\n",
+    process.stderr.write(
+      "mcp: not implemented in 0.1.0.\n" +
+        "MCP server support is planned; this build has no MCP client.\n",
     );
+    process.exitCode = 1;
     return;
   }
 

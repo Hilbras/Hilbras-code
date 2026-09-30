@@ -12,6 +12,21 @@ hilbras-code "why is src/auth/session.ts retrying forever?"
 
 No Node or Bun required on the target machine — the npm package ships a compiled binary per platform.
 
+## Status
+
+Version 0.1.0. Working today: the agent loop, nine tools, ten providers, one-shot and interactive
+modes, and a per-platform compiled binary.
+
+Not yet built, and not present in this release:
+
+- **MCP client support.** No `@modelcontextprotocol/sdk` in the bundle. Planned; the plugin seam
+  (`Tool` in `src/tools/define.ts`) is where it will attach.
+- **A TUI.** Output is a readable transcript, not a full-screen interface. Streaming and tool
+  events are already emitted as NDJSON via `--json`, so a TUI can be layered on without changing
+  the agent.
+- **Parser-based edits** (tree-sitter). Edits today are exact-match with a uniqueness requirement —
+  which catches the dangerous failures, but cannot yet make a structurally-aware edit.
+
 ## Why this exists
 
 Most coding agents edit files by searching for a string and replacing it. That is fine right up

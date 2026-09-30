@@ -1,22 +1,23 @@
 {
   "name": "hilbras-code",
   "version": "0.1.0",
-  "description": "A fast, extensible coding agent CLI. Structural code edits, MCP tools, cloud and local models, one binary for macOS, Linux and Windows.",
+  "description": "A fast coding agent CLI. Unambiguous file edits, cloud and local models, one binary for macOS, Linux and Windows.",
   "keywords": [
     "ai",
+    "ai-agent",
     "agent",
     "cli",
     "coding-agent",
+    "code-agent",
     "codex",
     "cline",
-    "mcp",
     "llm",
     "terminal",
-    "tui",
     "developer-tools",
     "anthropic",
     "openai",
-    "ollama"
+    "ollama",
+    "bun"
   ],
   "homepage": "https://github.com/Hilbras/Hilbras-code#readme",
   "bugs": "https://github.com/Hilbras/Hilbras-code/issues",
@@ -31,10 +32,6 @@
   "bin": {
     "hilbras-code": "bin/hilbras-code.mjs",
     "hcode": "bin/hilbras-code.mjs"
-  },
-  "main": "src/index.ts",
-  "exports": {
-    ".": "./src/index.ts"
   },
   "files": [
     "bin",
@@ -56,10 +53,7 @@
     "prepublishOnly": "bun run check"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.12.0",
-    "commander": "^12.1.0",
     "execa": "^9.5.1",
-    "web-tree-sitter": "^0.25.3",
     "zod": "^3.23.8",
     "zod-to-json-schema": "^3.23.5"
   },
