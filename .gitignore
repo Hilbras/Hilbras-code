@@ -1,0 +1,13 @@
+node_modules
+dist
+*.log
+
+# test scratch directories
+.tmp-test-*
+.tmp-e2e-*
+
+# compiled binaries are release artifacts, not source
+bin/hilbras-code-linux-*
+bin/hilbras-code-darwin-*
+bin/hilbras-code-windows-*
+!bin/hilbras-code.mjs
