@@ -69,10 +69,11 @@ describe("logo", () => {
     expect(new Set(widths).size).toBe(1);
   });
 
-  test("rows read as a capital H", () => {
-    // Two separated stems on top, a solid bar below.
-    expect(stripAnsi(LOGO_ROWS[0] ?? "")).toBe("██ ██");
-    expect(stripAnsi(LOGO_ROWS[1] ?? "")).toBe("█████");
+  test("rows are the two-line placeholder mark", () => {
+    // PLACEHOLDER: borrowed from kimi-code pending an original logo. See
+    // src/tui/logo.ts. Update this assertion when the mark is replaced.
+    expect(stripAnsi(LOGO_ROWS[0] ?? "")).toBe("▐█▛█▛█▌");
+    expect(stripAnsi(LOGO_ROWS[1] ?? "")).toBe("▐█████▌");
   });
 
   test("plainLogo pads every row to the same width", () => {

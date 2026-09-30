@@ -1,17 +1,21 @@
 /**
  * The Hilbras Code logo.
  *
- * A two-line block "H", sized to sit beside the title in the welcome box. Every
- * glyph is a single-column block character, so `visibleWidth` counts each row
- * correctly without wide-character handling.
+ * PLACEHOLDER: the glyphs below are borrowed from kimi-code's welcome header
+ * (apps/kimi-code/src/tui/components/chrome/welcome.ts in that project). They
+ * are a stopgap, not an original mark. Kimi is a Moonshot AI trademark, and
+ * shipping this in a competing product is a trademark risk, so it must be
+ * replaced with an original logo before any public release.
+ *
+ * Two rows of single-column block glyphs, sized to sit beside the title in the
+ * welcome box. Every glyph is one column wide, so `visibleWidth` counts each row
+ * without wide-character handling.
  */
 
-import { fg } from "./theme.ts";
-import { currentTheme } from "./theme.ts";
-import type { ColorPalette } from "./theme.ts";
+import { type ColorPalette, currentTheme, fg } from "./theme.ts";
 
 /** Logo rows, unstyled. Exported so tests can assert the shape. */
-export const LOGO_ROWS: readonly string[] = ["██ ██", "█████"];
+export const LOGO_ROWS: readonly string[] = ["▐█▛█▛█▌", "▐█████▌"];
 
 export function logoWidth(): number {
   return Math.max(...LOGO_ROWS.map((row) => [...row].length));

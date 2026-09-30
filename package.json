@@ -1,5 +1,5 @@
 {
-  "name": "hilbras-code",
+  "name": "@hilbras/code",
   "version": "0.1.0",
   "description": "A fast coding agent CLI. Unambiguous file edits, cloud and local models, one binary for macOS, Linux and Windows.",
   "keywords": [
