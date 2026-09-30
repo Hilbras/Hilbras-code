@@ -33,12 +33,7 @@
     "hilbras-code": "bin/hilbras-code.mjs",
     "hcode": "bin/hilbras-code.mjs"
   },
-  "files": [
-    "bin",
-    "src",
-    "README.md",
-    "LICENSE"
-  ],
+  "files": ["bin/hilbras-code.mjs", "src", "scripts/postinstall.mjs", "README.md", "LICENSE"],
   "engines": {
     "node": ">=20"
   },
@@ -50,6 +45,7 @@
     "format": "biome format --write .",
     "test": "bun test",
     "check": "bun run lint && bun run typecheck && bun run test",
+    "postinstall": "node scripts/postinstall.mjs",
     "prepublishOnly": "bun run check"
   },
   "dependencies": {

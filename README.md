@@ -15,17 +15,40 @@ No Node or Bun required on the target machine — the npm package ships a compil
 ## Status
 
 Version 0.1.0. Working today: the agent loop, nine tools, ten providers, one-shot and interactive
-modes, and a per-platform compiled binary.
+modes, a per-platform compiled binary, and the welcome panel.
 
 Not yet built, and not present in this release:
 
 - **MCP client support.** No `@modelcontextprotocol/sdk` in the bundle. Planned; the plugin seam
   (`Tool` in `src/tools/define.ts`) is where it will attach.
-- **A TUI.** Output is a readable transcript, not a full-screen interface. Streaming and tool
-  events are already emitted as NDJSON via `--json`, so a TUI can be layered on without changing
-  the agent.
+- **A full TUI.** The interactive session is a readable transcript with a welcome panel, not an
+  alt-screen interface. Streaming and tool events are already emitted as NDJSON via `--json`, so a
+  TUI can be layered on without changing the agent.
 - **Parser-based edits** (tree-sitter). Edits today are exact-match with a uniqueness requirement —
   which catches the dangerous failures, but cannot yet make a structurally-aware edit.
+
+## The welcome panel
+
+An interactive session opens with a bordered panel showing the logo, the model in use, and where
+you are:
+
+```
+╭──────────────────────────────────────────────────────╮
+│                                                      │
+│  ██ ██  Welcome to Hilbras Code!                     │
+│  █████  Type a task, or /help for help information.  │
+│                                                      │
+│  Directory: /home/gin/work/my-project                │
+│  Provider:  anthropic                               │
+│  Model:     claude-sonnet-4-5                       │
+│  Version:   0.1.0                                   │
+│                                                      │
+╰──────────────────────────────────────────────────────╯
+```
+
+It is width-aware: a long path is clipped with an ellipsis rather than breaking the border, and
+below 24 columns the box collapses to a compact layout. Colour is truecolor when the terminal
+supports it and plain text otherwise (`NO_COLOR` is honoured).
 
 ## Why this exists
 
@@ -150,6 +173,7 @@ src/
   agent/loop.ts         the turn loop: stream → tools → repeat
   providers/            anthropic, openai-compat, ollama, http (SSE + NDJSON)
   tools/                define (Zod), files, shell, agent-tools
+  tui/                  width (ANSI-aware), theme (palette), logo, welcome
 ```
 
 `Provider` is the seam. Anthropic, the seven OpenAI-compatible vendors, and Ollama normalise into

@@ -1,6 +1,13 @@
-import { describe, expect, test } from "bun:test";
+import { afterAll, describe, expect, test } from "bun:test";
+import { rm } from "node:fs/promises";
 import { isLocalProvider, providerKeyEnvVars, resolveConfig } from "../src/config/resolve.ts";
 import { contextTool, createContextState, estimateTokens } from "../src/tools/agent-tools.ts";
+
+const configDir = `${import.meta.dir}/../.tmp-test-config`;
+
+afterAll(async () => {
+  await rm(configDir, { recursive: true, force: true });
+});
 
 const clean = (extra: Record<string, string> = {}) => ({ ...extra }) as NodeJS.ProcessEnv;
 
@@ -47,7 +54,7 @@ describe("resolveConfig", () => {
   });
 
   test("a config file supplies defaults below env", async () => {
-    const dir = `${import.meta.dir}/../.tmp-test-config`;
+    const dir = configDir;
     await Bun.write(`${dir}/hilbras-code.json`, JSON.stringify({ provider: "groq", maxSteps: 7 }));
     const config = resolveConfig(clean(), dir);
     expect(config.provider).toBe("groq");

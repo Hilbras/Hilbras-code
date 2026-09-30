@@ -1,0 +1,46 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    name: lint, typecheck, test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Test
+        run: bun test
+
+      - name: Build host binary
+        run: bun run build
+
+      - name: Smoke test the binary
+        run: |
+          ./bin/hilbras-code-linux-x64 --version
+          ./bin/hilbras-code-linux-x64 --list-tools
+          # No API key in CI: the CLI must fail cleanly, not crash.
+          ./bin/hilbras-code-linux-x64 "hello" && exit 1 || true
+
+      - name: Verify the packed tarball
+        run: |
+          npm pack
+          npm install --no-save ./hilbras-code-*.tgz
+          ./node_modules/.bin/hilbras-code --version

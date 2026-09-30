@@ -26,6 +26,15 @@
     "lineWidth": 100
   },
   "files": {
-    "ignore": ["node_modules", "dist", "bin/*.mjs", "vendor"]
+    "ignore": [
+      "node_modules",
+      "dist",
+      "vendor",
+      "bin/*.mjs",
+      "scripts/*.mjs",
+      "package-lock.json",
+      ".tmp-test-*",
+      ".tmp-e2e-*"
+    ]
   }
 }

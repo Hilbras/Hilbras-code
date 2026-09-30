@@ -1,0 +1,121 @@
+name: release
+
+# Publishes per-platform binaries to a GitHub release, and a GitHub release
+# makes the npm package's postinstall download work. Publishing to npm is a
+# separate, manual step by design: npm versions are immutable and cannot be
+# unpublished, so a release should be cut deliberately.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to build a release for (e.g. v0.1.0)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-x64
+            os: ubuntu-latest
+            bunTarget: bun-linux-x64
+          - target: linux-arm64
+            os: ubuntu-24.04-arm
+            bunTarget: bun-linux-arm64
+          - target: darwin-x64
+            os: macos-13
+            bunTarget: bun-darwin-x64
+          - target: darwin-arm64
+            os: macos-14
+            bunTarget: bun-darwin-arm64
+          - target: windows-x64
+            os: windows-latest
+            bunTarget: bun-windows-x64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Verify
+        shell: bash
+        run: |
+          bun run lint
+          bun run typecheck
+          bun test
+
+      - name: Build binary
+        shell: bash
+        run: bun run scripts/build.ts ${{ matrix.target }}
+
+      - name: Smoke test
+        shell: bash
+        run: |
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            ./bin/hilbras-code-${{ matrix.target }}.exe --version
+          else
+            ./bin/hilbras-code-${{ matrix.target }} --version
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hilbras-code-${{ matrix.target }}
+          path: |
+            bin/hilbras-code-${{ matrix.target }}
+            bin/hilbras-code-${{ matrix.target }}.exe
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: publish release assets
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          generate_release_notes: true
+          body: |
+            ## Install
+
+            ```bash
+            npm install -g hilbras-code
+            ```
+
+            The npm postinstall downloads the binary for your platform. If that
+            download is blocked, the package falls back to running with
+            [Bun](https://bun.sh).
+
+            Or download a binary directly:
+
+            | Platform | Asset |
+            | --- | --- |
+            | Linux x64 | `hilbras-code-linux-x64` |
+            | Linux arm64 | `hilbras-code-linux-arm64` |
+            | macOS x64 | `hilbras-code-darwin-x64` |
+            | macOS arm64 | `hilbras-code-darwin-arm64` |
+            | Windows x64 | `hilbras-code-windows-x64.exe` |

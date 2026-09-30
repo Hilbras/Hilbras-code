@@ -11,3 +11,6 @@ bin/hilbras-code-linux-*
 bin/hilbras-code-darwin-*
 bin/hilbras-code-windows-*
 !bin/hilbras-code.mjs
+
+# npm pack output
+*.tgz

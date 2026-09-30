@@ -8,6 +8,7 @@ import { type ContextState, contextTool, createContextState } from "./tools/agen
 import type { Tool } from "./tools/define.ts";
 import { fileTools } from "./tools/files.ts";
 import { shellTools } from "./tools/shell.ts";
+import { renderWelcome } from "./tui/welcome.ts";
 import type { Message, Provider, Usage } from "./types.ts";
 
 const VERSION = "0.1.0";
@@ -321,8 +322,19 @@ async function interactive(
   emit: Emit,
   system: string,
 ): Promise<void> {
+  // The welcome panel replaces the old one-line banner.
+  const width = process.stderr.columns ?? 80;
   process.stderr.write(
-    `${bold("hilbras-code")} ${dim(`${VERSION} · ${config.provider}/${config.model} · ${config.workspace}`)}\n`,
+    renderWelcome(
+      {
+        version: VERSION,
+        workspace: config.workspace,
+        provider: config.provider,
+        model: config.model,
+        isLoggedOut: !config.apiKey && !config.local,
+      },
+      { width },
+    ).join("\n"),
   );
   process.stderr.write(dim("Type a task, or /exit to quit. Ctrl-C interrupts a turn.\n\n"));
 
@@ -386,15 +398,25 @@ async function interactive(
 
 const RED = "[31m";
 const GREEN = "[32m";
-const CYAN = "[36m";
-const DIM = "[2m";
-const BOLD = "[1m";
-const RESET = "[0m";
+const CYAN = "[36m";
+const DIM = "[2m";
+const RESET = "[0m";
 
 const red = (s: string) => `${RED}${s}${RESET}`;
 const green = (s: string) => `${GREEN}${s}${RESET}`;
 const cyan = (s: string) => `${CYAN}${s}${RESET}`;
 const dim = (s: string) => `${DIM}${s}${RESET}`;
-const bold = (s: string) => `${BOLD}${s}${RESET}`;
+
+/**
+ * Exit quietly when the output pipe closes (`hilbras-code --list-tools | head`).
+ * Without this the process dies on an unhandled EPIPE and prints a stack trace,
+ * which is noise in a pipeline and hides the real exit status.
+ */
+for (const stream of [process.stdout, process.stderr]) {
+  stream.on("error", (error: NodeJS.ErrnoException) => {
+    if (error.code === "EPIPE") process.exit(0);
+    throw error;
+  });
+}
 
 main();

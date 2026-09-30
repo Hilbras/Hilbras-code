@@ -1,10 +1,18 @@
-import { describe, expect, test } from "bun:test";
+import { afterAll, describe, expect, test } from "bun:test";
+import { rm } from "node:fs/promises";
 import { editFileTool, readFileTool, writeFileTool } from "../src/tools/files.ts";
 
 const workspace = `${import.meta.dir}/../.tmp-test-files`;
+const created: string[] = [];
+
+/** Each test gets its own scratch dir, removed when the file's tests finish. */
+afterAll(async () => {
+  await Promise.all(created.map((dir) => rm(dir, { recursive: true, force: true })));
+});
 
 async function freshWorkspace(): Promise<string> {
   const dir = `${workspace}-${Math.random().toString(36).slice(2, 8)}`;
+  created.push(dir);
   await Bun.write(`${dir}/.keep`, "");
   return dir;
 }
