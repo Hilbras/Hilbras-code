@@ -32,13 +32,6 @@ if (targets.length === 0) {
   process.exit(1);
 }
 
-await Bun.write(
-  ".gitignore",
-  await Bun.file(".gitignore")
-    .text()
-    .catch(() => "node_modules\ndist\n*.log\n"),
-);
-
 for (const target of targets) {
   const outfile =
     target.name === "windows-x64"

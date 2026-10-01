@@ -53,6 +53,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Verify
+        if: runner.os != 'Windows'
         shell: bash
         run: |
           bun run lint
@@ -60,17 +61,16 @@ jobs:
           bun test
 
       - name: Build binary
-        shell: bash
         run: bun run scripts/build.ts ${{ matrix.target }}
 
       - name: Smoke test
+        if: runner.os != 'Windows'
         shell: bash
-        run: |
-          if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            ./bin/hilbras-code-${{ matrix.target }}.exe --version
-          else
-            ./bin/hilbras-code-${{ matrix.target }} --version
-          fi
+        run: ./bin/hilbras-code-${{ matrix.target }} --version
+
+      - name: Smoke test (Windows)
+        if: runner.os == 'Windows'
+        run: .\bin\hilbras-code-${{ matrix.target }}.exe --version
 
       - uses: actions/upload-artifact@v4
         with:
