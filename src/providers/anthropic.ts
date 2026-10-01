@@ -65,7 +65,12 @@ export class AnthropicProvider implements Provider {
   async *stream(request: ChatRequest): AsyncGenerator<StreamEvent> {
     assertNonEmpty(request);
     const payload = { ...this.toWire(request), stream: true };
-    const toolCalls: ToolCall[] = [];
+    // Keyed by the content-block index from the wire. A tool block's index is
+    // its position among ALL content blocks, not among tool blocks: a leading
+    // text block shifts every tool by one. Indexing positionally therefore
+    // writes a tool's JSON into the wrong slot — or nowhere — and the call
+    // reaches the agent with empty arguments.
+    const toolCallsByIndex = new Map<number, ToolCall>();
     let usage: Usage = emptyUsage();
     let finish: FinishReason = "stop";
     // Text is not accumulated here: the agent loop reassembles it from the
@@ -85,7 +90,11 @@ export class AnthropicProvider implements Provider {
           case "content_block_start": {
             const block = parsed.content_block;
             if (block?.type === "tool_use") {
-              toolCalls.push({ id: block.id ?? "", name: block.name ?? "", arguments: "" });
+              toolCallsByIndex.set(parsed.index ?? 0, {
+                id: block.id ?? "",
+                name: block.name ?? "",
+                arguments: "",
+              });
             }
             break;
           }
@@ -94,7 +103,7 @@ export class AnthropicProvider implements Provider {
             if (delta?.type === "text_delta") {
               yield { type: "text", text: delta.text ?? "" };
             } else if (delta?.type === "input_json_delta") {
-              const current = toolCalls[parsed.index ?? 0];
+              const current = toolCallsByIndex.get(parsed.index ?? 0);
               if (current) current.arguments += delta.partial_json ?? "";
             } else if (delta?.type === "thinking_delta") {
               yield { type: "reasoning", text: delta.thinking ?? "" };
@@ -122,9 +131,13 @@ export class AnthropicProvider implements Provider {
         }
       }
 
-      // Tool calls are surfaced before `done` so a consumer can act on them in
-      // event order; the agent loop collects them all regardless.
-      for (const call of toolCalls) yield { type: "toolCall", call };
+      // Emitted in wire order (ascending content-block index). Tool calls come
+      // before `done` so a consumer can act on them in event order; the agent
+      // loop collects them all regardless.
+      const ordered = [...toolCallsByIndex.entries()]
+        .sort((a, b) => a[0] - b[0])
+        .map(([, call]) => call);
+      for (const call of ordered) yield { type: "toolCall", call };
       if (usage.totalTokens > 0) yield { type: "usage", usage };
       yield { type: "done", reason: finish };
     } catch (error) {

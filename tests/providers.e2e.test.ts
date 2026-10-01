@@ -99,6 +99,102 @@ describe("AnthropicProvider streaming", () => {
     }
   });
 
+  test("routes a tool's JSON by content-block index, not array position", async () => {
+    // Regression: tool calls were pushed positionally while deltas were looked
+    // up by content-block index. A leading text block shifts every tool by one,
+    // so a model that says anything before calling a tool produced a call with
+    // empty arguments — every tool call failed schema validation.
+    const base = startServer(() =>
+      sse([
+        frame("content_block_start", {
+          type: "content_block_start",
+          index: 0,
+          content_block: { type: "text", text: "" },
+        }),
+        frame("content_block_delta", {
+          type: "content_block_delta",
+          index: 0,
+          delta: { type: "text_delta", text: "Let me look at that file." },
+        }),
+        frame("content_block_start", {
+          type: "content_block_start",
+          index: 1,
+          content_block: { type: "tool_use", id: "toolu_9", name: "read_file" },
+        }),
+        frame("content_block_delta", {
+          type: "content_block_delta",
+          index: 1,
+          delta: { type: "input_json_delta", partial_json: '{"path":"a.ts"}' },
+        }),
+        frame("message_delta", { type: "message_delta", delta: { stop_reason: "tool_use" } }),
+      ]),
+    );
+
+    const provider = new AnthropicProvider("k", "claude-test", `${base}/v1/messages`);
+    const calls = [];
+    for await (const event of provider.stream({
+      model: "claude-test",
+      messages: [{ role: "user", content: "read a.ts" }],
+    })) {
+      if (event.type === "toolCall") calls.push(event.call);
+    }
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.name).toBe("read_file");
+    expect(JSON.parse(calls[0]?.arguments ?? "")).toEqual({ path: "a.ts" });
+  });
+
+  test("keeps two tool calls in wire order when text precedes them", async () => {
+    const base = startServer(() =>
+      sse([
+        frame("content_block_start", {
+          type: "content_block_start",
+          index: 0,
+          content_block: { type: "text", text: "" },
+        }),
+        frame("content_block_delta", {
+          type: "content_block_delta",
+          index: 0,
+          delta: { type: "text_delta", text: "Reading both." },
+        }),
+        frame("content_block_start", {
+          type: "content_block_start",
+          index: 1,
+          content_block: { type: "tool_use", id: "t1", name: "read_file" },
+        }),
+        frame("content_block_delta", {
+          type: "content_block_delta",
+          index: 1,
+          delta: { type: "input_json_delta", partial_json: '{"path":"first.ts"}' },
+        }),
+        frame("content_block_start", {
+          type: "content_block_start",
+          index: 2,
+          content_block: { type: "tool_use", id: "t2", name: "read_file" },
+        }),
+        frame("content_block_delta", {
+          type: "content_block_delta",
+          index: 2,
+          delta: { type: "input_json_delta", partial_json: '{"path":"second.ts"}' },
+        }),
+        frame("message_delta", { type: "message_delta", delta: { stop_reason: "tool_use" } }),
+      ]),
+    );
+
+    const provider = new AnthropicProvider("k", "claude-test", `${base}/v1/messages`);
+    const calls = [];
+    for await (const event of provider.stream({
+      model: "claude-test",
+      messages: [{ role: "user", content: "read two files" }],
+    })) {
+      if (event.type === "toolCall") calls.push(event.call);
+    }
+
+    expect(calls).toHaveLength(2);
+    expect(JSON.parse(calls[0]?.arguments ?? "")).toEqual({ path: "first.ts" });
+    expect(JSON.parse(calls[1]?.arguments ?? "")).toEqual({ path: "second.ts" });
+  });
+
   test("surfaces an HTTP error instead of hanging", async () => {
     const base = startServer(
       () => new Response("rate limit exceeded", { status: 429, statusText: "Too Many Requests" }),
