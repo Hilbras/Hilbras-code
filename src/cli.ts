@@ -216,27 +216,67 @@ function main(): void {
     return;
   }
 
-  let provider: Provider;
-  try {
-    provider = createProvider(config);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    process.stderr.write(`${message}\n`);
-    const hint = localRuntimeHint(config.provider);
-    if (hint) process.stderr.write(`${hint}\n`);
-    process.exitCode = 1;
+  // A one-shot run has no chance to recover, so validate the provider now.
+  // Interactive mode defers it: the welcome panel and the slash commands work
+  // with no provider configured, and only a submitted task needs one. Failing
+  // at startup would hide the UI and the guidance behind a one-line error.
+  if (promptFromArgs) {
+    let provider: Provider;
+    try {
+      provider = createProvider(config);
+    } catch (error) {
+      reportProviderFailure(config, error);
+      return;
+    }
+    const contextState = createContextState(CONTEXT_WINDOWS[config.provider] ?? 128_000);
+    const emit = flags.json ? ndjsonEmitter() : prettyEmitter();
+    const system = flags.system ?? SYSTEM_PROMPT;
+    void oneShot(promptFromArgs, config, provider, contextState, emit, system);
     return;
   }
 
   const contextState = createContextState(CONTEXT_WINDOWS[config.provider] ?? 128_000);
   const emit = flags.json ? ndjsonEmitter() : prettyEmitter();
   const system = flags.system ?? SYSTEM_PROMPT;
+  void interactive(config, contextState, emit, system);
+}
 
-  if (promptFromArgs) {
-    void oneShot(promptFromArgs, config, provider, contextState, emit, system);
-    return;
+function reportProviderFailure(config: ReturnType<typeof resolveConfig>, error: unknown): void {
+  const message = error instanceof Error ? error.message : String(error);
+  process.stderr.write(`${message}\n`);
+  const hint = localRuntimeHint(config.provider);
+  if (hint) process.stderr.write(`${hint}\n`);
+  process.exitCode = 1;
+}
+
+/** `/help` — must work with no provider configured, so it never touches one. */
+function writeHelp(config: ReturnType<typeof resolveConfig>, emit: Emit): void {
+  const lines: string[] = [
+    "",
+    "Commands",
+    "  /help        show this help",
+    "  /context     show the conversation breakdown",
+    "  /clear       discard the conversation",
+    "  /exit        leave",
+    "",
+    `Provider  ${config.provider} / ${config.model}`,
+  ];
+
+  if (!config.apiKey && !config.local) {
+    lines.push(
+      "",
+      "  not configured — to send tasks, do one of:",
+      "    export ANTHROPIC_API_KEY=...       (or OPENAI_API_KEY, OPENROUTER_API_KEY, ...)",
+      "    hilbras-code -p ollama -m MODEL   local runtime, no key needed",
+      "    hilbras-code -p lmstudio          or -p llamacpp",
+      `  supported: ${SUPPORTED_PROVIDERS.join(", ")}`,
+    );
   }
-  void interactive(config, provider, contextState, emit, system);
+
+  lines.push("", "Tools the agent can use:", `  ${TOOLS.map((t) => t.name).join(", ")}`, "");
+  // One write, not one per line: the text emitter streams a chunk verbatim, so
+  // writing each line separately collapses them all onto one row.
+  emit.text(`${lines.join("\n")}\n`);
 }
 
 type Emit = {
@@ -317,11 +357,12 @@ async function oneShot(
 
 async function interactive(
   config: ReturnType<typeof resolveConfig>,
-  provider: ReturnType<typeof createProvider>,
   state: ReturnType<typeof createContextState>,
   emit: Emit,
   system: string,
 ): Promise<void> {
+  const ready = !config.apiKey && !config.local;
+
   // The welcome panel replaces the old one-line banner.
   const width = process.stderr.columns ?? 80;
   process.stderr.write(
@@ -331,12 +372,21 @@ async function interactive(
         workspace: config.workspace,
         provider: config.provider,
         model: config.model,
-        isLoggedOut: !config.apiKey && !config.local,
+        isLoggedOut: ready,
       },
       { width },
     ).join("\n"),
   );
-  process.stderr.write(dim("Type a task, or /exit to quit. Ctrl-C interrupts a turn.\n\n"));
+  if (ready) {
+    process.stderr.write(
+      dim(
+        "No provider configured. Set HILBRAS_PROVIDER / an API key, or use -p ollama\n" +
+          "for a local runtime, before sending a task.\n\n",
+      ),
+    );
+  } else {
+    process.stderr.write(dim("Type a task, or /exit to quit. Ctrl-C interrupts a turn.\n\n"));
+  }
 
   const history: Message[] = [];
   const rl = createInterface({ input: process.stdin, output: process.stdout, prompt: "> " });
@@ -359,6 +409,26 @@ async function interactive(
     if (input === "/context") {
       const rows = state.messages.map((m, i) => `  [${i}] ${m.role} — ${m.content.length} chars`);
       process.stderr.write(dim(`messages: ${state.messages.length}\n${rows.join("\n")}\n`));
+      rl.prompt();
+      continue;
+    }
+    if (input === "/help") {
+      writeHelp(config, emit);
+      rl.prompt();
+      continue;
+    }
+
+    // Build the provider only once a task is actually submitted, so the panel
+    // and the slash commands work with nothing configured.
+    let provider: Provider;
+    try {
+      provider = createProvider(config);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      emit.error(message);
+      const hint = localRuntimeHint(config.provider);
+      if (hint) process.stderr.write(dim(`${hint}\n`));
+      process.stderr.write(dim("configure a provider, then try again\n\n"));
       rl.prompt();
       continue;
     }
