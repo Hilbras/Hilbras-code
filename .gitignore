@@ -14,3 +14,7 @@ bin/hilbras-code-windows-*
 
 # npm pack output
 *.tgz
+
+# stray pnpm artifacts from npm install -g .
+pnpm-lock.yaml
+pnpm-workspace.yaml
